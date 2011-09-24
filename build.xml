@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="tested-webapp-tests" default="run-tests" basedir=".">
+
+	<property name="selenium.server.jar" value="/Users/sano/JLibs/selenium-remote-control-1.0.3/selenium-server-1.0.3/selenium-server.jar" />
+	<property name="src" value="${basedir}/test" />
+	<property name="build" value="${basedir}/bin" />
+	<property name="lib" value="${basedir}/lib" />
+	<!-- Could be defined in Ant runtime classpath, but here is better -->
+	<property name="hamcrest.home" value="/Users/sano/JLibs/galileo/plugins" />
+	<property name="junit4.home" value="/Users/sano/JLibs/galileo/plugins/org.junit4_4.5.0.v20090824" />
+
+	<path id="classpath">
+		<fileset dir="${lib}" includes="**/*.jar" />
+		<fileset dir="${hamcrest.home}" includes="org.hamcrest.core*.jar" />
+		<fileset dir="${junit4.home}" includes="junit.jar" />
+		<fileset dir="/Users/sano/JLibs/selenium-remote-control-1.0.3/selenium-java-client-driver-1.0.1" includes="selenium-java-client-driver.jar" />
+	</path>
+
+	<target name="start-selenium-server">
+		<java jar="${selenium.server.jar}" fork="true">
+			<arg line="-singleWindow"/>
+		</java>
+	</target>
+
+	<target name="compile-tests">
+		<javac srcdir="${src}" destdir="${build}" classpathref="classpath" />
+	</target>
+
+	<target name="run-tests" depends="compile-tests">
+		<delete dir="repot" />
+		<mkdir dir="report" />
+		<junit printsummary="true" showoutput="true" outputtoformatters="true">
+			<formatter type="plain" />
+			<formatter type="xml" />
+			<classpath>
+				<path refid="classpath" />
+				<pathelement path="${build}" />
+			</classpath>
+
+			<batchtest fork="yes" todir="report">
+				<fileset dir="${src}">
+					<include name="**/*Test.java" />
+				</fileset>
+			</batchtest>
+		</junit>
+		<echo message="Finished running tests." />
+		<junitreport todir="report">
+			<fileset dir="report">
+				<include name="TEST-*.xml" />
+			</fileset>
+			<report format="frames" todir="report" />
+		</junitreport>
+	</target>
+
+	<target name="stop-selenium-server">
+		<get taskname="selenium-shutdown" src="http://localhost:4444/selenium-server/driver/?cmd=shutDownSeleniumServer" dest="result.txt" ignoreerrors="true" />
+	</target>
+
+	<target name="run-all">
+		<parallel>
+			<antcall target="start-selenium-server">
+			</antcall>
+			<sequential>
+				<echo taskname="waitfor" message="Wait for proxy server launch" />
+				<waitfor maxwait="1" maxwaitunit="minute" checkevery="100">
+					<http url="http://localhost:4444/selenium-server/driver/?cmd=testComplete" />
+				</waitfor>
+				<antcall target="run-tests">
+				</antcall>
+				<antcall target="stop-selenium-server">
+				</antcall>
+			</sequential>
+		</parallel>
+	</target>
+
+</project>
